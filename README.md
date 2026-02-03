@@ -29,6 +29,16 @@ Workflow
 User submits report
 
 Data stored in Firestore
+
+AI generates complaint letter
+
+Authorities resolve issue
+
+Status updates in real time
+
+
+
+
 FOR TESTING PURPOSES FOLLOW THIS FLOW:
 1.On thr landing page dashboard click "login"
 2.Create a new user account with your email and create a password
@@ -43,8 +53,3 @@ FOR TESTING PURPOSES FOLLOW THIS FLOW:
 11. Logout
 12. User side automatic location also present
 
-AI generates complaint letter
-
-Authorities resolve issue
-
-Status updates in real time
