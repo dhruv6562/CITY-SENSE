@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Sense - Community Incident Reporting Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+
+</head>
+
+<body>
+    <!-- Enhanced Animated Background -->
+    <div class="bg-animation">
+        <div class="wave wave1"></div>
+        <div class="wave wave2"></div>
+        <div class="wave wave3"></div>
+        <div class="floating-elements">
+            <div class="leaf leaf1">🏢</div>
+            <div class="leaf leaf2">🚦</div>
+            <div class="leaf leaf3">🏙️</div>
+            <div class="leaf leaf4">🏗️</div>
+            <div class="leaf leaf5">🌆</div>
+        </div>
+    </div>
+
+    <!-- Enhanced Loader -->
+    <div class="loader" id="loader">
+        <div class="loader-content">
+            <div class="logo-container">
+                <div class="logo-circle">
+                    <div class="logo-inner">
+                        <i class="fas fa-city"></i>
+                    </div>
+                    <div class="logo-ring"></div>
+                    <div class="logo-pulse"></div>
+                </div>
+            </div>
+            <h1 class="brand-heading">City Sense</h1>
+            <p class="tagline">Empowering Community Reporting</p>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <p class="loading-text">Initializing community reporting platform...</p>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo" onclick="showPage('home')">
+                <div class="logo-nav">
+                    <i class="fas fa-city"></i>
+                    <span>City Sense</span>
+                </div>
+            </a>
+
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="#" class="nav-link active" onclick="showPage('home')" data-page="home">
+                        <i class="fas fa-home"></i>Home
+                    </a></li>
+                <li id="userDashboardNavItem" style="display: none;"><a href="#" class="nav-link" onclick="showPage('user-dashboard')"
+                        data-page="user-dashboard">
+                        <i class="fas fa-tachometer-alt"></i>Dashboard
+                    </a></li>
+                <li id="authorityDashboardNavItem" style="display: none;"><a href="#" class="nav-link" onclick="showPage('authority')"
+                        data-page="authority">
+                        <i class="fas fa-shield-alt"></i>Dashboard
+                    </a></li>
+                <li id="reportNavItem" style="display: none;"><a href="#" class="nav-link" onclick="showPage('report')"
+                        data-page="report">
+                        <i class="fas fa-exclamation-triangle"></i>Report
+                    </a></li>
+                <li id="leaderboardNavItem"><a href="#" class="nav-link"
+                        onclick="showPage('leaderboard')" data-page="leaderboard">
+                        <i class="fas fa-trophy"></i>Leaderboard
+                    </a></li>
+                <li id="myReportsNavItem" style="display: none;"><a href="#" class="nav-link"
+                        onclick="showPage('myreports')" data-page="myreports">
+                        <i class="fas fa-file-alt"></i>My Reports
+                    </a></li>
+                <li id="authorityNavItem"><a href="#" class="nav-link" onclick="showPage('authority-login')" data-page="authority-login">
+                        <i class="fas fa-shield-alt"></i>Authority
+                    </a></li>
+                <li id="loginNavItem"><a href="#" class="nav-link" onclick="showPage('user-login')"
+                        data-page="user-login">
+                        <i class="fas fa-user"></i>Login
+                    </a></li>
+                <li id="logoutNavItem" style="display: none;"><a href="#" class="nav-link" onclick="userLogout()">
+                        <i class="fas fa-sign-out-alt"></i>Logout
+                    </a></li>
+            </ul>
+
+            <button class="mobile-menu-toggle" id="mobileToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="home-page" class="page">
+        <section class="hero">
+            <div class="hero-content">
+                <h1 class="hero-title">Community-Powered Incident Reporting</h1>
+                <p class="hero-subtitle">Join our platform to report, track, and help resolve incidents in your city. Together, we can make our communities safer and better for everyone.</p>
+                <p id="welcomeMessage" class="welcome-message"></p>
+
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number" id="totalReports">0</span>
+                        <span class="stat-label">Reports Submitted</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" id="resolvedPercentage">0%</span>
+                        <span class="stat-label">Cases Resolved</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" id="activeUsers">0</span>
+                        <span class="stat-label">Active Users</span>
+                    </div>
+                </div>
+
+                <div class="hero-actions">
+                    <a href="#" class="btn btn-primary" onclick="checkAuthAndNavigate('report')">
+                        <i class="fas fa-plus"></i>Report Incident
+                    </a>
+                    <a href="#" class="btn btn-primary" onclick="showPage('leaderboard')">
+                        <i class="fas fa-trophy"></i>View Leaderboard
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <h2 class="section-title">How City Sense Works</h2>
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-icon">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <h3>Report Incidents</h3>
+                        <p>Easily report issues in your community including infrastructure problems, safety concerns, and environmental hazards with photo evidence and location.</p>
+                        <ul class="feature-list">
+                            <li>• Quick and easy reporting</li>
+                            <li>• Photo evidence upload</li>
+                            <li>• GPS location tracking</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>Track Progress</h3>
+                        <p>Monitor the status of your reports from submission to resolution. Stay informed with real-time updates on how authorities are addressing community issues.</p>
+                        <ul class="feature-list">
+                            <li>• Real-time status updates</li>
+                            <li>• Investigation tracking</li>
+                            <li>• Resolution notifications</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3>Community Impact</h3>
+                        <p>Join an active community making real change. Earn points for reporting, compete on leaderboards, and see the tangible impact of your contributions to the city.</p>
+                        <ul class="feature-list">
+                            <li>• Earn points for contributions</li>
+                            <li>• Compete on leaderboards</li>
+                            <li>• Make measurable impact</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- User Dashboard Page -->
+    <div id="user-dashboard-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <div class="dashboard-header">
+                    <h2 class="section-title">My Dashboard</h2>
+                    <p class="dashboard-subtitle" id="userDashboardWelcome">Welcome back!</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-file-alt"></i>
+                        <div class="stat-value" id="userTotalReports">0</div>
+                        <div class="stat-title">My Reports</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-star"></i>
+                        <div class="stat-value" id="userPoints">0</div>
+                        <div class="stat-title">Points Earned</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-check-circle"></i>
+                        <div class="stat-value" id="userResolvedReports">0</div>
+                        <div class="stat-title">Resolved</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-trophy"></i>
+                        <div class="stat-value" id="userRank">-</div>
+                        <div class="stat-title">Leaderboard Rank</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-actions" style="margin: 2rem 0; display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="#" class="btn btn-primary" onclick="showPage('report')">
+                        <i class="fas fa-plus"></i>Submit New Report
+                    </a>
+                    <a href="#" class="btn btn-outline" onclick="showPage('myreports')">
+                        <i class="fas fa-list"></i>View My Reports
+                    </a>
+                    <a href="#" class="btn btn-outline" onclick="showPage('leaderboard')">
+                        <i class="fas fa-trophy"></i>View Leaderboard
+                    </a>
+                </div>
+
+                <h3 style="margin: 2rem 0 1rem 0; color: var(--primary);">Recent Reports</h3>
+                <div id="userRecentReports">
+                    <div class="card">
+                        <div style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                            <p style="color: var(--text-muted);">Loading recent reports...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Login Page -->
+    <div id="user-login-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <div class="login-container">
+                    <div class="login-card">
+                        <div class="login-header">
+                            <div class="login-logo">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <h2>User Login</h2>
+                            <p>Access your account to submit and track reports</p>
+                        </div>
+
+                        <form id="userLoginForm">
+                            <div class="form-group">
+                                <label for="userEmail">Email Address</label>
+                                <input type="email" id="userEmail" class="form-control" required
+                                    placeholder="your@email.com">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="userPassword">Password</label>
+                                <div class="password-input">
+                                    <input type="password" id="userPassword" class="form-control" required
+                                        placeholder="Enter your password">
+                                    <button type="button" class="password-toggle" onclick="toggleUserPassword()">
+                                        <i class="fas fa-eye" id="userPasswordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                <i class="fas fa-sign-in-alt"></i>Login
+                            </button>
+                        </form>
+
+                        <div class="login-footer">
+                            <p>Don't have an account? <a href="#" onclick="showPage('user-register')"
+                                    class="link-primary">Register here</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Register Page -->
+    <div id="user-register-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <div class="login-container">
+                    <div class="login-card">
+                        <div class="login-header">
+                            <div class="login-logo">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <h2>Create Account</h2>
+                            <p>Join our community of environmental guardians</p>
+                        </div>
+
+                        <form id="userRegisterForm">
+                            <div class="form-group">
+                                <label for="regFullName">Full Name</label>
+                                <input type="text" id="regFullName" class="form-control" required
+                                    placeholder="Your full name">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regEmail">Email Address</label>
+                                <input type="email" id="regEmail" class="form-control" required
+                                    placeholder="your@email.com">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regPassword">Password</label>
+                                <div class="password-input">
+                                    <input type="password" id="regPassword" class="form-control" required
+                                        placeholder="Choose a strong password" minlength="6">
+                                    <button type="button" class="password-toggle" onclick="toggleRegPassword()">
+                                        <i class="fas fa-eye" id="regPasswordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regPhone">Phone Number (Optional)</label>
+                                <input type="tel" id="regPhone" class="form-control" placeholder="+91-1234567890">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                <i class="fas fa-user-plus"></i>Create Account
+                            </button>
+                        </form>
+
+                        <div class="login-footer">
+                            <p>Already have an account? <a href="#" onclick="showPage('user-login')"
+                                    class="link-primary">Login here</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Page -->
+    <div id="report-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <h2 class="section-title">Report an Incident</h2>
+                <div class="form-container">
+                    <form id="reportForm">
+                        <div class="form-group">
+                            <label for="incidentType">Incident Type *</label>
+                            <select id="incidentType" class="form-control" required>
+                                <option value="">Select incident type</option>
+                                <option value="Illegal cutting">Illegal Cutting/Logging</option>
+                                <option value="Dumping">Illegal Dumping</option>
+                                <option value="Fire">Fire/Burning</option>
+                                <option value="Pollution">Water Pollution</option>
+                                <option value="Development">Unauthorized Development</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description *</label>
+                            <textarea id="description" class="form-control" rows="4"
+                                placeholder="Please provide detailed information about the incident..."
+                                required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="photo">Photo Evidence</label>
+                            <input type="file" id="photo" class="form-control" accept="image/*">
+                            <small class="form-help">Upload a photo to support your report (optional)</small>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="lat">Latitude *</label>
+                                <input type="number" id="lat" class="form-control" step="any"
+                                    placeholder="e.g., 23.0225" required readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="lng">Longitude *</label>
+                                <input type="number" id="lng" class="form-control" step="any"
+                                    placeholder="e.g., 72.5714" required readonly>
+                            </div>
+                        </div>
+
+                        <button type="button" id="getLocationBtn" class="btn btn-outline"
+                            style="width: 100%; margin-bottom: 1rem;">
+                            <i class="fas fa-map-marker-alt"></i>Get Current Location
+                        </button>
+
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">
+                            <i class="fas fa-paper-plane"></i>Submit Report
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Page -->
+    <div id="leaderboard-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <h2 class="section-title">Community Leaderboard</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-users"></i>
+                        <div class="stat-value" id="activeReporters">0</div>
+                        <div class="stat-title">Active Reporters</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-calendar-week"></i>
+                        <div class="stat-value" id="thisWeek">0</div>
+                        <div class="stat-title">Reports This Week</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-award"></i>
+                        <div class="stat-value" id="topScore">0</div>
+                        <div class="stat-title">Highest Score</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Reporter</th>
+                                <th>Reports</th>
+                                <th>Score</th>
+                                <th>Badge</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardTable">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                    <i class="fas fa-trophy"
+                                        style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                                    No reports submitted yet. Be the first to report an incident!
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Reports Page -->
+    <div id="myreports-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <h2 class="section-title">My Reports</h2>
+                <div id="myReportsContainer">
+                    <div class="card">
+                        <div style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-file-alt"
+                                style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                            <h3>No Reports Yet</h3>
+                            <p style="color: var(--text-muted); margin-bottom: 2rem;">You haven't submitted any reports
+                                yet. Help protect our mangroves by reporting incidents.</p>
+                            <a href="#" class="btn btn-primary" onclick="showPage('report')">
+                                <i class="fas fa-plus"></i>Submit First Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Authority Login Page -->
+    <div id="authority-login-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <div class="login-container">
+                    <div class="login-card">
+                        <div class="login-header">
+                            <div class="login-logo">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h2>Authority Login</h2>
+                            <p>Access the authority dashboard to manage reports</p>
+                        </div>
+
+                        <form id="authorityLoginForm">
+                            <div class="form-group">
+                                <label for="authEmail">Email Address</label>
+                                <input type="email" id="authEmail" class="form-control" required
+                                    placeholder="authority@citysense.com">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="authPassword">Password</label>
+                                <div class="password-input">
+                                    <input type="password" id="authPassword" class="form-control" required
+                                        placeholder="Enter your password">
+                                    <button type="button" class="password-toggle" onclick="togglePassword()">
+                                        <i class="fas fa-eye" id="passwordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                <i class="fas fa-sign-in-alt"></i>Login to Dashboard
+                            </button>
+                        </form>
+
+                        <div class="login-help">
+                            <p>Demo Credentials:</p>
+                            <ul class="demo-creds">
+                                <li>• Email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="08696c656166486569666f7a677e6d7f697c6b60266b6765">[email&#160;protected]</a></li>
+                                <li>• Password: admin123</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Authority Dashboard Page -->
+    <div id="authority-page" class="page hidden">
+        <div class="page-content">
+            <div class="container">
+                <div class="authority-header">
+                    <h2 class="section-title">Authority Dashboard</h2>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div class="stat-value" id="pendingReports">0</div>
+                        <div class="stat-title">Pending Reports</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-search"></i>
+                        <div class="stat-value" id="investigating">0</div>
+                        <div class="stat-title">Under Investigation</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-check-circle"></i>
+                        <div class="stat-value" id="resolved">0</div>
+                        <div class="stat-title">Resolved</div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="max-width: 400px; margin: 2rem 0;">
+                    <input type="text" id="searchReports" class="form-control" placeholder="Search reports..."
+                        oninput="filterReports()">
+                </div>
+
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Reporter</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Location</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Photo</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="authorityTable">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                    <i class="fas fa-clipboard-list"
+                                        style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                                    No reports to review at this time.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <i class="fas fa-city"></i>
+                        <span>City Sense</span>
+                    </div>
+                    <p>Empowering communities through incident reporting and collaborative problem-solving.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul class="footer-links">
+                        <li>• <a href="#" onclick="checkAuthAndNavigate('report')">Report Incident</a></li>
+                        <li>• <a href="#" onclick="showPage('leaderboard')">Leaderboard</a></li>
+                        <li>• <a href="#" onclick="checkAuthAndNavigate('myreports')">My Reports</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <ul class="footer-links">
+                        <li>• Email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a1c0c5ccc9cee1ccc0cfc6d3ced7c4d6c0d5c2c98fc2cecc">[email&#160;protected]</a></li>
+                        <li>• Phone: +91-123-456-7890</li>
+                        <li>• Emergency: 911</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; <span id="year">2026</span> City Sense. All rights reserved. | Built for community empowerment.</p>
+            </div>
+        </div>
+    </footer>
+   <div id="resolveModal" class="photo-modal" style="background: rgba(0,0,0,0.95);">
+        <div class="card" style="width: 90%; max-width: 500px; margin: 0 auto; position: relative; pointer-events: auto;">
+            <button onclick="closeResolveModal()" 
+                    style="position:absolute; right:15px; top:15px; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            
+            <h3 style="color: var(--success); margin-bottom: 1.5rem;">Resolve Incident</h3>
+            <form onsubmit="submitResolution(event)">
+                <input type="hidden" id="resolveReportId">
+                
+                <div class="form-group">
+                    <label style="color:white; margin-bottom:10px; display:block;">Upload Evidence Photo *</label>
+                    <input type="file" id="resolveEvidence" class="form-control" accept="image/*" required>
+                    <small class="form-help">Proof of resolution (cleanup, restoration, etc.)</small>
+                </div>
+
+                <button type="submit" id="resolveSubmitBtn" class="btn btn-primary" style="width: 100%; background: var(--success);">
+                    <i class="fas fa-check"></i>Mark as Resolved
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    
+    <script>
+        // Handle navigation from complaint viewer or other pages
+        window.addEventListener('load', () => {
+            // Check for redirect parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirect = urlParams.get('redirect');
+            
+            // Also check for hash-based navigation (fallback)
+            const hash = window.location.hash.substring(1);
+            
+            const targetPage = redirect || hash;
+            
+            if (targetPage) {
+                // Wait for Firebase auth to initialize
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    // Add a small delay to ensure Firebase is fully ready
+                    setTimeout(() => {
+                        if (user && targetPage === 'user-dashboard') {
+                            console.log('[Navigation] User authenticated, showing dashboard');
+                            showPage('user-dashboard');
+                        } else if (targetPage) {
+                            console.log('[Navigation] Showing page:', targetPage);
+                            showPage(targetPage);
+                        }
+                        
+                        // Clean up URL
+                        if (redirect) {
+                            history.replaceState(null, null, 'index.html');
+                        }
+                    }, 300);
+                    
+                    // Unsubscribe immediately after first call
+                    unsubscribe();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
