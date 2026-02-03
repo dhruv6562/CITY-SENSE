@@ -81,6 +81,35 @@ const FirebaseService = {
     return auth.currentUser;
   },
 
+  // Real-time listener for user profile
+  listenToUserProfile(uid, callback){
+    const unsubscribe = db.collection("users").doc(uid)
+      .onSnapshot(
+        (doc) => {
+          if (doc.exists) {
+            callback({
+              success: true,
+              userData: doc.data()
+            });
+          } else {
+            callback({
+              success: false,
+              error: "User profile not found"
+            });
+          }
+        },
+        (error) => {
+          console.error("User profile listener error:", error);
+          callback({
+            success: false,
+            error: error.message
+          });
+        }
+      );
+    
+    return unsubscribe;
+  },
+
   // ---------- REPORT SUBMIT ----------
 
   async submitReport(reportData, photoFile){
@@ -192,6 +221,35 @@ const FirebaseService = {
     };
   },
 
+  // Real-time listener for user reports
+  listenToUserReports(uid, callback){
+    const unsubscribe = db.collection("reports")
+      .where("userId","==",uid)
+      .onSnapshot(
+        (snapshot) => {
+          const reports = snapshot.docs.map(d=>({
+            id:d.id,
+            ...d.data(),
+            createdAt:safeTimestamp(d.data().createdAt)
+          })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          
+          callback({
+            success:true,
+            reports
+          });
+        },
+        (error) => {
+          console.error("User reports listener error:", error);
+          callback({
+            success:false,
+            error: error.message
+          });
+        }
+      );
+    
+    return unsubscribe;
+  },
+
   async getAllReports(){
 
     const snap = await db.collection("reports")
@@ -222,6 +280,34 @@ const FirebaseService = {
         ...d.data()
       }))
     };
+  },
+
+  // Real-time leaderboard listener
+  listenToLeaderboard(callback){
+    const unsubscribe = db.collection("users")
+      .orderBy("points","desc")
+      .limit(10)
+      .onSnapshot(
+        (snapshot) => {
+          const leaderboard = snapshot.docs.map(d=>({
+            id:d.id,
+            ...d.data()
+          }));
+          callback({
+            success:true,
+            leaderboard
+          });
+        },
+        (error) => {
+          console.error("Leaderboard listener error:", error);
+          callback({
+            success:false,
+            error: error.message
+          });
+        }
+      );
+    
+    return unsubscribe;
   },
 
   async getReportStats(){

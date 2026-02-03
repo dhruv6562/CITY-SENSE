@@ -3,6 +3,9 @@ const MW = (() => {
     let isAuthorityAuthenticated = sessionStorage.getItem('isAuthorityAuthenticated') === 'true';
     let allReports = [];
     let statsRefreshInterval = null;
+    let leaderboardUnsubscribe = null; // For real-time leaderboard updates
+    let userDashboardUnsubscribe = null; // For real-time user dashboard updates
+    let myReportsUnsubscribe = null; // For real-time my reports updates
 
     function formatDate(dateString) {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -445,51 +448,60 @@ const MW = (() => {
                 </tr>
             `;
 
-            const result = await FirebaseService.getLeaderboard();
-            
-            if (!result.success) {
-                showNotification('Failed to load leaderboard: ' + (result.error || 'Unknown error'), 'error');
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem; display: block;"></i>
-                            Failed to load leaderboard
-                        </td>
-                    </tr>
-                `;
-                return;
+            // Cleanup previous listener if exists
+            if (leaderboardUnsubscribe) {
+                leaderboardUnsubscribe();
+                leaderboardUnsubscribe = null;
             }
 
-            const leaderboard = result.leaderboard || [];
-            const badges = ['🥇', '🥈', '🥉', '🏅', '⭐', '⭐', '⭐', '⭐', '⭐', '⭐'];
-            
-            if (leaderboard.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                            <i class="fas fa-trophy" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
-                            No reports submitted yet.
-                        </td>
-                    </tr>
-                `;
-            } else {
-                tbody.innerHTML = leaderboard.map((user, index) => `
-                    <tr style="animation: fadeInUp 0.5s ease ${index * 0.1}s both;">
-                        <td><strong style="color: var(--primary);">#${index + 1}</strong></td>
-                        <td><strong>${user.fullName || 'Anonymous'}</strong></td>
-                        <td>${user.totalReports || 0}</td>
-                        <td><strong style="color: var(--accent);">${user.points || 0} pts</strong></td>
-                        <td><span style="font-size: 1.5rem">${badges[index] || '⭐'}</span></td>
-                    </tr>
-                `).join("");
-            }
+            // Set up real-time listener
+            leaderboardUnsubscribe = FirebaseService.listenToLeaderboard(async (result) => {
+                if (!result.success) {
+                    showNotification('Failed to load leaderboard: ' + (result.error || 'Unknown error'), 'error');
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem; display: block;"></i>
+                                Failed to load leaderboard
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
 
-            const stats = await FirebaseService.getReportStats();
-            if (stats.success) {
-                animateCounter('activeReporters', stats.stats.activeReporters);
-                animateCounter('thisWeek', stats.stats.thisWeekReports);
-                animateCounter('topScore', leaderboard[0]?.points || 0);
-            }
+                const leaderboard = result.leaderboard || [];
+                const badges = ['🥇', '🥈', '🥉', '🏅', '⭐', '⭐', '⭐', '⭐', '⭐', '⭐'];
+                
+                if (leaderboard.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                <i class="fas fa-trophy" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                                No reports submitted yet.
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    tbody.innerHTML = leaderboard.map((user, index) => `
+                        <tr style="animation: fadeInUp 0.5s ease ${index * 0.1}s both;">
+                            <td><strong style="color: var(--primary);">#${index + 1}</strong></td>
+                            <td><strong>${user.fullName || 'Anonymous'}</strong></td>
+                            <td>${user.totalReports || 0}</td>
+                            <td><strong style="color: var(--accent);">${user.points || 0} pts</strong></td>
+                            <td><span style="font-size: 1.5rem">${badges[index] || '⭐'}</span></td>
+                        </tr>
+                    `).join("");
+                }
+
+                // Update stats
+                const stats = await FirebaseService.getReportStats();
+                if (stats.success) {
+                    animateCounter('activeReporters', stats.stats.activeReporters);
+                    animateCounter('thisWeek', stats.stats.thisWeekReports);
+                    animateCounter('topScore', leaderboard[0]?.points || 0);
+                }
+            });
+
         } catch (error) {
             console.error('Failed to load leaderboard:', error);
             showNotification('Failed to load leaderboard: ' + error.message, 'error');
@@ -501,6 +513,14 @@ const MW = (() => {
                     </td>
                 </tr>
             `;
+        }
+    }
+
+    // Cleanup function to unsubscribe from leaderboard when leaving page
+    function cleanupLeaderboard() {
+        if (leaderboardUnsubscribe) {
+            leaderboardUnsubscribe();
+            leaderboardUnsubscribe = null;
         }
     }
 
@@ -541,86 +561,95 @@ const MW = (() => {
                 </div>
             `;
 
-            const result = await FirebaseService.getUserReports(user.uid);
-            if (!result.success) {
-                showNotification("Failed to load your reports: " + (result.error || 'Unknown error'), "error");
-                container.innerHTML = `
-                    <div class="card">
-                        <div style="text-align: center; padding: 2rem;">
-                            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem;"></i>
-                            <h3>Error Loading Reports</h3>
-                            <p style="color: var(--text-muted); margin-bottom: 2rem;">${result.error || 'Could not load reports at this time.'}</p>
-                            <button class="btn btn-primary" onclick="MW.renderMyReports()">
-                                <i class="fas fa-redo"></i>Try Again
-                            </button>
-                        </div>
-                    </div>
-                `;
-                return;
+            // Cleanup previous listener if exists
+            if (myReportsUnsubscribe) {
+                myReportsUnsubscribe();
+                myReportsUnsubscribe = null;
             }
 
-            const reports = result.reports;
-            
-            if (reports.length === 0) {
-                container.innerHTML = `
-                    <div class="card">
-                        <div style="text-align: center; padding: 2rem;">
-                            <i class="fas fa-file-alt" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
-                            <h3>No Reports Yet</h3>
-                            <p style="color: var(--text-muted); margin-bottom: 2rem;">You haven't submitted any reports yet.</p>
-                            <a href="#" class="btn btn-primary" onclick="showPage('report')">
-                                <i class="fas fa-plus"></i>Submit First Report
-                            </a>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = reports.map((r, index) => `
-                <div class="card fade-in" style="margin-bottom: 2rem; animation-delay: ${index * 0.1}s;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-                        <div style="flex-grow: 1;">
-                            <h3 style="margin: 0; color: var(--primary); font-size: 1.3rem;">${r.incidentType || 'Incident'}</h3>
-                            <p style="margin: 0.75rem 0; color: var(--text-muted); font-size: 0.95rem;">
-                                <i class="fas fa-calendar-alt"></i> ${formatDate(r.createdAt)} | 
-                                <i class="fas fa-map-marker-alt"></i> ${Number(r.latitude || 0).toFixed(4)}, ${Number(r.longitude || 0).toFixed(4)}
-                            </p>
-                        </div>
-                        <span class="status ${getStatusColor(r.status || 'pending')}">${(r.status || 'PENDING').toUpperCase()}</span>
-                    </div>
-                    <p style="margin-bottom: 1.5rem; line-height: 1.7; color: var(--text-muted);">${r.description || 'No description provided.'}</p>
-                    
-                    ${r.photoUrl ? `
-                        <div style="margin-bottom: 1.5rem;">
-                            <img src="${r.photoUrl}" alt="Report evidence" class="photo-thumbnail" onclick="showPhotoModal('${r.photoUrl}')" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid var(--primary);">
-                        </div>
-                    ` : ''}
-
-                    ${r.authorityName ? `
-                        <div style="margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.05); border-radius:8px; border-left: 3px solid var(--accent);">
-                            <small style="color:var(--text-muted); display:block; margin-bottom:0.5rem">HANDLED BY:</small>
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <i class="fas fa-user-shield" style="color:var(--accent)"></i>
-                                <strong>${r.authorityName}</strong>
+            // Set up real-time listener for user reports
+            myReportsUnsubscribe = FirebaseService.listenToUserReports(user.uid, (result) => {
+                if (!result.success) {
+                    showNotification("Failed to load your reports: " + (result.error || 'Unknown error'), "error");
+                    container.innerHTML = `
+                        <div class="card">
+                            <div style="text-align: center; padding: 2rem;">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem;"></i>
+                                <h3>Error Loading Reports</h3>
+                                <p style="color: var(--text-muted); margin-bottom: 2rem;">${result.error || 'Could not load reports at this time.'}</p>
+                                <button class="btn btn-primary" onclick="MW.renderMyReports()">
+                                    <i class="fas fa-redo"></i>Try Again
+                                </button>
                             </div>
                         </div>
-                    ` : ''}
-                    
-                    ${r.aiComplaintLetter ? `
-                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-                            <button class="btn btn-primary" style="width: 100%;" onclick="viewComplaintLetter('${r.id}')">
-                                <i class="fas fa-file-alt"></i> View AI-Generated Complaint Letter
-                            </button>
+                    `;
+                    return;
+                }
+
+                const reports = result.reports;
+                
+                if (reports.length === 0) {
+                    container.innerHTML = `
+                        <div class="card">
+                            <div style="text-align: center; padding: 2rem;">
+                                <i class="fas fa-file-alt" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                                <h3>No Reports Yet</h3>
+                                <p style="color: var(--text-muted); margin-bottom: 2rem;">You haven't submitted any reports yet.</p>
+                                <a href="#" class="btn btn-primary" onclick="showPage('report')">
+                                    <i class="fas fa-plus"></i>Submit First Report
+                                </a>
+                            </div>
                         </div>
-                    ` : (r.aiPending ? `
-                        <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align: center;">
-                            <i class="fas fa-spinner fa-pulse" style="color: var(--warning);"></i>
-                            <span style="color: var(--warning); margin-left: 0.5rem;">AI is generating your formal complaint letter...</span>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = reports.map((r, index) => `
+                    <div class="card fade-in" style="margin-bottom: 2rem; animation-delay: ${index * 0.1}s;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                            <div style="flex-grow: 1;">
+                                <h3 style="margin: 0; color: var(--primary); font-size: 1.3rem;">${r.incidentType || 'Incident'}</h3>
+                                <p style="margin: 0.75rem 0; color: var(--text-muted); font-size: 0.95rem;">
+                                    <i class="fas fa-calendar-alt"></i> ${formatDate(r.createdAt)} | 
+                                    <i class="fas fa-map-marker-alt"></i> ${Number(r.latitude || 0).toFixed(4)}, ${Number(r.longitude || 0).toFixed(4)}
+                                </p>
+                            </div>
+                            <span class="status ${getStatusColor(r.status || 'pending')}">${(r.status || 'PENDING').toUpperCase()}</span>
                         </div>
-                    ` : '')}
-                </div>
-            `).join("");
+                        <p style="margin-bottom: 1.5rem; line-height: 1.7; color: var(--text-muted);">${r.description || 'No description provided.'}</p>
+                        
+                        ${r.photoUrl ? `
+                            <div style="margin-bottom: 1.5rem;">
+                                <img src="${r.photoUrl}" alt="Report evidence" class="photo-thumbnail" onclick="showPhotoModal('${r.photoUrl}')" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid var(--primary);">
+                            </div>
+                        ` : ''}
+
+                        ${r.authorityName ? `
+                            <div style="margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.05); border-radius:8px; border-left: 3px solid var(--accent);">
+                                <small style="color:var(--text-muted); display:block; margin-bottom:0.5rem">HANDLED BY:</small>
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <i class="fas fa-user-shield" style="color:var(--accent)"></i>
+                                    <strong>${r.authorityName}</strong>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${r.aiComplaintLetter ? `
+                            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                                <button class="btn btn-primary" style="width: 100%;" onclick="viewComplaintLetter('${r.id}')">
+                                    <i class="fas fa-file-alt"></i> View AI-Generated Complaint Letter
+                                </button>
+                            </div>
+                        ` : (r.aiPending ? `
+                            <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align: center;">
+                                <i class="fas fa-spinner fa-pulse" style="color: var(--warning);"></i>
+                                <span style="color: var(--warning); margin-left: 0.5rem;">AI is generating your formal complaint letter...</span>
+                            </div>
+                        ` : '')}
+                    </div>
+                `).join("");
+            });
+
         } catch (error) {
             console.error('Error in renderMyReports:', error);
             showNotification('Failed to load reports: ' + error.message, 'error');
@@ -636,6 +665,14 @@ const MW = (() => {
                     </div>
                 </div>
             `;
+        }
+    }
+
+    // Cleanup function for my reports
+    function cleanupMyReports() {
+        if (myReportsUnsubscribe) {
+            myReportsUnsubscribe();
+            myReportsUnsubscribe = null;
         }
     }
 
@@ -658,17 +695,27 @@ const MW = (() => {
                 welcomeEl.textContent = `Welcome back, ${user.displayName || 'User'}!`;
             }
 
-            // Fetch user profile data
-            const userDoc = await db.collection("users").doc(user.uid).get();
-            const userData = userDoc.data();
+            // Cleanup previous listeners if they exist
+            if (userDashboardUnsubscribe) {
+                if (userDashboardUnsubscribe.profile) userDashboardUnsubscribe.profile();
+                if (userDashboardUnsubscribe.reports) userDashboardUnsubscribe.reports();
+                if (userDashboardUnsubscribe.leaderboard) userDashboardUnsubscribe.leaderboard();
+            }
 
-            if (userData) {
-                // Update user stats
-                animateCounter('userTotalReports', userData.totalReports || 0);
-                animateCounter('userPoints', userData.points || 0);
+            // Initialize unsubscribe object
+            userDashboardUnsubscribe = {};
 
-                // Fetch user reports to calculate resolved count
-                const reportsResult = await FirebaseService.getUserReports(user.uid);
+            // Set up real-time listener for user profile
+            userDashboardUnsubscribe.profile = FirebaseService.listenToUserProfile(user.uid, (result) => {
+                if (result.success && result.userData) {
+                    const userData = result.userData;
+                    animateCounter('userTotalReports', userData.totalReports || 0);
+                    animateCounter('userPoints', userData.points || 0);
+                }
+            });
+
+            // Set up real-time listener for user reports
+            userDashboardUnsubscribe.reports = FirebaseService.listenToUserReports(user.uid, (reportsResult) => {
                 if (reportsResult.success) {
                     const reports = reportsResult.reports;
                     const resolvedCount = reports.filter(r => r.status === 'resolved').length;
@@ -678,6 +725,8 @@ const MW = (() => {
                     const recentReports = reports.slice(0, 3);
                     const recentContainer = document.getElementById('userRecentReports');
                     
+                    if (!recentContainer) return;
+
                     if (recentReports.length === 0) {
                         recentContainer.innerHTML = `
                             <div class="card">
@@ -708,9 +757,10 @@ const MW = (() => {
                         `).join("");
                     }
                 }
+            });
 
-                // Calculate leaderboard rank
-                const leaderboardResult = await FirebaseService.getLeaderboard();
+            // Set up real-time listener for leaderboard rank
+            userDashboardUnsubscribe.leaderboard = FirebaseService.listenToLeaderboard((leaderboardResult) => {
                 if (leaderboardResult.success) {
                     const leaderboard = leaderboardResult.leaderboard;
                     const userRank = leaderboard.findIndex(u => u.id === user.uid) + 1;
@@ -723,11 +773,21 @@ const MW = (() => {
                         }
                     }
                 }
-            }
+            });
 
         } catch (error) {
             console.error('Error loading user dashboard:', error);
             showNotification('Failed to load dashboard data: ' + error.message, 'error');
+        }
+    }
+
+    // Cleanup function for user dashboard
+    function cleanupUserDashboard() {
+        if (userDashboardUnsubscribe) {
+            if (userDashboardUnsubscribe.profile) userDashboardUnsubscribe.profile();
+            if (userDashboardUnsubscribe.reports) userDashboardUnsubscribe.reports();
+            if (userDashboardUnsubscribe.leaderboard) userDashboardUnsubscribe.leaderboard();
+            userDashboardUnsubscribe = null;
         }
     }
 
@@ -1466,7 +1526,10 @@ const MW = (() => {
         renderUserDashboard,
         showNotification,
         updateStats,
-        stopStatsRefresh
+        stopStatsRefresh,
+        cleanupLeaderboard,
+        cleanupUserDashboard,
+        cleanupMyReports
     };
 })();
 
@@ -1475,6 +1538,17 @@ const Navigation = (() => {
     let currentPage = 'home';
 
     function showPage(pageName) {
+        // Cleanup previous page listeners
+        if (currentPage === 'leaderboard') {
+            MW.cleanupLeaderboard();
+        }
+        if (currentPage === 'user-dashboard') {
+            MW.cleanupUserDashboard();
+        }
+        if (currentPage === 'myreports') {
+            MW.cleanupMyReports();
+        }
+
         document.querySelectorAll('.page').forEach(page => {
             page.style.opacity = '0';
             page.style.transform = 'translateY(20px)';
